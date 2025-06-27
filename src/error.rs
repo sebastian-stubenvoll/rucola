@@ -7,6 +7,8 @@ pub type Result<T> = std::result::Result<T, RucolaError>;
 pub enum RucolaError {
     #[error("An IO operation failed: {0}")]
     IO(#[from] std::io::Error),
+    #[error("Error when handling filetypes.")]
+    UnhandledFiletype,
     #[error("Failed to find this note at the expected location: {0}.")]
     NoteNotFound(String),
     #[error("Could not read file name of note at {0}.")]

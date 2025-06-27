@@ -1,51 +1,32 @@
 use ratatui::{prelude::*, widgets::*};
-use std::{fmt::Debug, fs, path};
+use std::{fs, path};
+use typst_syntax::{
+    ast::{self, AstNode},
+    SyntaxKind, SyntaxNode,
+};
 
 use itertools::Itertools;
 
 use crate::{error, ui};
 
-/// An abstract representation of a note that contains statistics about it but _not_ the full text.
-#[derive(Clone, Debug, Default)]
-pub struct Note {
-    /// The title of the note.
-    pub display_name: String,
-    /// The name of the file the note is saved in.
-    pub name: String,
-    /// All tags contained at any part of the note.
-    pub tags: Vec<String>,
-    /// All links contained within the note - no external (e.g. web) links.
-    pub links: Vec<String>,
-    /// The number of words.
-    pub words: usize,
-    /// The number of characters.
-    pub characters: usize,
-    /// A copy of the path leading to this note.
-    pub path: path::PathBuf,
+// ZSTs for the various filetypes
+struct MarkdownFile;
+struct TypstFile;
+
+// Parser trait
+trait ToNote {
+    fn to_note(path: &path::Path) -> error::Result<Note>;
 }
 
-impl Note {
-    /// Opens the file from the given path (if possible) and extracts metadata.
-    pub fn from_path(path: &path::Path) -> error::Result<Self> {
+impl ToNote for MarkdownFile {
+    fn to_note(path: &path::Path) -> error::Result<Note> {
         // Open the file.
         let content = fs::read_to_string(path)?;
-
         // Create a regex to check for YAML front matter.
         let regex = regex::Regex::new("---\n((.|\n)*)\n---\n((.|\n)*)")?;
 
         // Extract both the YAML front matter, if present, and the main content.
-        let (yaml, content) = if let Some(matches) = regex.captures(&content) {
-            // If the regex matched, YAML front matter was present.
-            (
-                // The 1st capture group is the front matter.
-                matches.get(1).map(|m| m.as_str().to_owned()),
-                // The 3rd capture group is the actual content.
-                matches.get(3).unwrap().as_str().to_owned(),
-            )
-        } else {
-            // If the regex didn't match, then just use the content.
-            (None, content)
-        };
+        let (yaml, content) = Note::extract_yaml(regex, content);
 
         // Parse markdown into AST
         let arena = comrak::Arena::new();
@@ -60,54 +41,10 @@ impl Note {
             },
         );
 
-        // Parse YAML.
-        let (title, tags) = if let Some(yaml) = yaml {
-            let docs = yaml_rust::YamlLoader::load_from_str(&yaml)?;
-            let doc = &docs[0];
+        // Parse YAML to obtain title and tags.
+        let (title, tags) = Note::parse_yaml(yaml)?;
 
-            // Check if there was a title specified.
-            let title = doc["title"].as_str().map(|s| s.to_owned());
-
-            // Check if tags were specified.
-            let tags = doc["tags"]
-                // Convert the entry into a vec - if the entry isn't there, use an empty vec.
-                .as_vec()
-                .unwrap_or(&Vec::new())
-                .iter()
-                // Convert the individual entries into strs, as rust-yaml doesn't do nested lists.
-                .flat_map(|v| v.as_str())
-                // Convert those into Strings and prepend the #.
-                .flat_map(|s| {
-                    // Entries of sublists will appear as separated by ` - `, so split by that.
-                    let parts = s.split(" - ").collect_vec();
-
-                    if parts.is_empty() {
-                        // This should not happen.
-                        Vec::new()
-                    } else if parts.len() == 1 {
-                        // Only one parts => There were not subtags. Simply prepend a `#`.
-                        vec![format!("#{}", s)]
-                    } else {
-                        // More than 1 part => There were subtags.
-                        let mut res = Vec::new();
-
-                        // Iterate through all of the substrings except for the first, which is the supertag.
-                        for subtag in parts.iter().skip(1) {
-                            res.push(format!("#{}/{}", parts[0], subtag));
-                        }
-
-                        res
-                    }
-                })
-                // Collect all tags in a vec.
-                .collect_vec();
-
-            (title, tags)
-        } else {
-            (None, Vec::new())
-        };
-
-        Ok(Self {
+        Ok(Note {
             // Name: Check if there was one specified in the YAML fronmatter.
             // If not, remove file extension.
             display_name: title.unwrap_or(
@@ -158,6 +95,129 @@ impl Note {
             characters: content.len(),
         })
     }
+}
+
+impl ToNote for TypstFile {
+    fn to_note(path: &path::Path) -> error::Result<Note> {
+        // Open the file.
+        let content = fs::read_to_string(path)?;
+        // Create a regex to check for YAML front matter.
+        // This assumes the yaml frontmatter is enclosed in a block comment.
+        let regex = regex::Regex::new("\\\\*\n---\n((.|\n)*)\n---\n\\\\*((.|\n)*)")?;
+
+        // Extract both the YAML front matter, if present, and the main content.
+        let (yaml, content) = Note::extract_yaml(regex, content);
+
+        // Parse YAML to obtain title and tags.
+        let (title, tags) = Note::parse_yaml(yaml)?;
+
+        // Parse typst into syntax tree
+        let root = typst_syntax::parse(content.as_str());
+
+        // Define recursive function for traversing the tree.
+        // I don't belive we can skip any nodes?
+        // Any String or Expression could hold a FuncCall.
+        fn traverse_tree<'a>(
+            node: &'a SyntaxNode,
+            mut links: &'a mut Vec<String>,
+        ) -> &'a mut Vec<String> {
+            for child in node.children() {
+                // Inspect function call closer.
+                if child.kind() == SyntaxKind::FuncCall {
+                    if let Some(link) = look_ahead(child) {
+                        links.push(link);
+                    }
+                }
+                // traverse_tree must return its mutable reference...
+                links = traverse_tree(child, links);
+            }
+            // ...and does so here.
+            links
+        }
+
+        fn look_ahead(node: &SyntaxNode) -> Option<String> {
+            // TODO: use setting here
+            if node.cast_first_match::<ast::Ident>()?.as_str() == "refnote" {
+                return Some(
+                    node.cast_first_match::<ast::Args>()?
+                        .to_untyped()
+                        .cast_first_match::<ast::Str>()?
+                        .get()
+                        .to_string(),
+                );
+            }
+            None
+        }
+
+        let mut links: Vec<String> = Vec::new();
+        let _ = traverse_tree(&root, &mut links);
+
+        Ok(Note {
+            // Name: Check if there was one specified in the YAML fronmatter.
+            // If not, remove file extension.
+            display_name: title.unwrap_or(
+                path.file_stem()
+                    .map(|os| os.to_string_lossy().to_string())
+                    .ok_or_else(|| error::RucolaError::NoteNameCannotBeRead(path.to_path_buf()))?,
+            ),
+            // File name: Remove file extension.
+            name: path
+                .file_stem()
+                .map(|os| os.to_string_lossy().to_string())
+                .ok_or_else(|| error::RucolaError::NoteNameCannotBeRead(path.to_path_buf()))?,
+            // Path: Already given - convert to owned version.
+            path: path.canonicalize().unwrap_or(path.to_path_buf()),
+            // Tags: Go though all text nodes in the AST, split them at whitespace and look for those starting with a hash.
+            // Finally, append tags specified in the YAML frontmatter.
+            // TODO: get tags from tag function!
+            tags,
+            links,
+
+            // Words: Split at whitespace, grouping multiple consecutive instances of whitespace together.
+            // See definition of `split_whitespace` for criteria.
+            words: content.split_whitespace().count(),
+            // Characters: Simply use the length of the string.
+            characters: content.len(),
+        })
+    }
+}
+
+/// An abstract representation of a note that contains statistics about it but _not_ the full text.
+#[derive(Clone, Debug, Default)]
+pub struct Note {
+    /// The title of the note.
+    pub display_name: String,
+    /// The name of the file the note is saved in.
+    pub name: String,
+    /// All tags contained at any part of the note.
+    pub tags: Vec<String>,
+    /// All links contained within the note - no external (e.g. web) links.
+    pub links: Vec<String>,
+    /// The number of words.
+    pub words: usize,
+    /// The number of characters.
+    pub characters: usize,
+    /// A copy of the path leading to this note.
+    pub path: path::PathBuf,
+}
+
+impl Note {
+    /// Opens the file from the given path (if possible) and extracts metadata.
+    pub fn from_path(path: &path::Path) -> error::Result<Self> {
+        // Check filetype and create the corresponding note struct
+        let note = match path
+            .extension()
+            .ok_or(error::RucolaError::UnhandledFiletype)?
+            .to_str()
+        {
+            Some("md") => MarkdownFile::to_note(path),
+            Some("typ") => TypstFile::to_note(path),
+            // This should never match since only .md or .typ files should be passed in!
+            // Maybe there's a smarter way to design the API here?
+            _ => error::Result::Err(error::RucolaError::UnhandledFiletype),
+        };
+        note
+    }
 
     /// Converts this note to a small ratatui table displaying its most vital stats.
     pub fn to_stats_table(&self, styles: &ui::UiStyles) -> Table {
@@ -198,6 +258,72 @@ impl Note {
         ];
 
         Table::new(stats_rows, stats_widths).column_spacing(1)
+    }
+
+    fn extract_yaml(regex: regex::Regex, content: String) -> (Option<String>, String) {
+        let extracted = if let Some(matches) = regex.captures(&content) {
+            // If the regex matched, YAML front matter was present.
+            (
+                // The 1st capture group is the front matter.
+                matches.get(1).map(|m| m.as_str().to_owned()),
+                // The 3rd capture group is the actual content.
+                matches.get(3).unwrap().as_str().to_owned(),
+            )
+        } else {
+            // If the regex didn't match, then just use the content.
+            (None, content)
+        };
+        extracted
+    }
+
+    fn parse_yaml(yaml: Option<String>) -> error::Result<(Option<String>, Vec<String>)> {
+        // Parse YAML.
+        let (title, tags) = if let Some(yaml) = yaml {
+            let docs = yaml_rust::YamlLoader::load_from_str(&yaml)?;
+            let doc = &docs[0];
+
+            // Check if there was a title specified.
+            let title = doc["title"].as_str().map(|s| s.to_owned());
+
+            // Check if tags were specified.
+            let tags = doc["tags"]
+                // Convert the entry into a vec - if the entry isn't there, use an empty vec.
+                .as_vec()
+                .unwrap_or(&Vec::new())
+                .iter()
+                // Convert the individual entries into strs, as rust-yaml doesn't do nested lists.
+                .flat_map(|v| v.as_str())
+                // Convert those into Strings and prepend the #.
+                .flat_map(|s| {
+                    // Entries of sublists will appear as separated by ` - `, so split by that.
+                    let parts = s.split(" - ").collect_vec();
+
+                    if parts.is_empty() {
+                        // This should not happen.
+                        Vec::new()
+                    } else if parts.len() == 1 {
+                        // Only one parts => There were not subtags. Simply prepend a `#`.
+                        vec![format!("#{}", s)]
+                    } else {
+                        // More than 1 part => There were subtags.
+                        let mut res = Vec::new();
+
+                        // Iterate through all of the substrings except for the first, which is the supertag.
+                        for subtag in parts.iter().skip(1) {
+                            res.push(format!("#{}/{}", parts[0], subtag));
+                        }
+
+                        res
+                    }
+                })
+                // Collect all tags in a vec.
+                .collect_vec();
+
+            (title, tags)
+        } else {
+            (None, Vec::new())
+        };
+        Ok((title, tags))
     }
 }
 
