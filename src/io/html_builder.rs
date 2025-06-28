@@ -66,6 +66,14 @@ impl HtmlBuilder {
             return Ok(());
         }
 
+        // Ignore typst files.
+        if note
+            .path
+            .extension()
+            .is_some_and(|ext| ext.to_str() == Some("typ"))
+        {
+            return Ok(());
+        }
         // Read content of markdown(plaintext) file
         let content = fs::read_to_string(&note.path)?;
 

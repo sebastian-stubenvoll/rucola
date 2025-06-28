@@ -59,6 +59,10 @@ pub struct Config {
     pub(crate) tag_function: String,
     /// Typst lines to include at the top of each newly created note.
     pub(crate) typst_preamble: Vec<String>,
+    /// Enable typst pdf compilation.
+    pub(crate) enable_typst_pdf: bool,
+    /// Typst compiler cmd for building PDFs
+    pub(crate) typst_cmds: Vec<String>,
 }
 
 impl Default for Config {
@@ -85,6 +89,8 @@ impl Default for Config {
             link_function: "refnote".to_string(),
             tag_function: "tag".to_string(),
             typst_preamble: vec![],
+            enable_typst_pdf: false,
+            typst_cmds: vec![String::from("typst"), String::from("compile")],
         }
     }
 }

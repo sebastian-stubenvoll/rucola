@@ -71,6 +71,8 @@ impl App {
 
         let builder = io::HtmlBuilder::new(&config, vault_path.clone());
 
+        let typst_pdf_builder = io::TypstPdfBuilder::new(vault_path.clone());
+
         let manager = io::FileManager::new(&config, vault_path.clone());
 
         let tracker = match io::FileTracker::new(&config, vault_path.clone()) {
@@ -92,7 +94,8 @@ impl App {
         errors.extend(loading_screen_callback(msg).err());
 
         // Index all files in path
-        let (index, index_errors) = data::NoteIndex::new(tracker, builder.clone());
+        let (index, index_errors) =
+            data::NoteIndex::new(tracker, builder.clone(), typst_pdf_builder);
         errors.extend(index_errors);
 
         let index = std::rc::Rc::new(std::cell::RefCell::new(index));

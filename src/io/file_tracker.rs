@@ -230,7 +230,9 @@ mod tests {
 
         let tracker = crate::io::FileTracker::new(&config, tmp.clone()).unwrap();
         let builder = crate::io::HtmlBuilder::new(&config, tmp.clone());
-        let index = crate::data::NoteIndex::new(tracker, builder).0;
+        let typst_pdf_builder =
+            crate::io::TypstPdfBuilder::new(std::path::PathBuf::from("./tests"));
+        let index = crate::data::NoteIndex::new(tracker, builder, typst_pdf_builder).0;
         let index_con = std::rc::Rc::new(std::cell::RefCell::new(index));
 
         assert!(index_con.borrow().get("atlas").is_some());

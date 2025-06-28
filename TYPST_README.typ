@@ -75,17 +75,22 @@ at the beginning of the string.
 
 This comes with the same perks as the link-approach, i.e. tags can be styled or even hidden from the rendered pdf, e.g.
 ```typst
-let tag = text => {
-  hidden(text)
+let tag = (text, render: false) => {
+  if render {
+    #text
+  }
 }
-
-// or in shortform
-let tag = text => {}
-
 
 // Rucola will parse this as #metadata-only but it won't render in the final pdf!
 #tag("metadata-only")
+Whereas this tag will #tag("show", true)
 ```
+
+== Preamble
+These functions are most conveniently defined in a separate file which can then be imported.
+Import statements (or any arbitrary lines) can be automatically added when creating a new typst note.
+The config file contains a typst_preamble field for this. The field holds an array where each line automatically added to the top of the file.
+
 
 
 P.S. it felt fitting to make this a typst rather than a markdown file.

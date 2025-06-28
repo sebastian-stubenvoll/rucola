@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, collections::HashMap};
+use std::{any::Any, borrow::BorrowMut, collections::HashMap};
 
 use itertools::Itertools;
 
@@ -19,6 +19,8 @@ pub struct NoteIndex {
     tracker: io::FileTracker,
     /// The HtmlBuilder this index uses to create its HTML files.
     builder: io::HtmlBuilder,
+    /// The TypstPdfBuilder this index uses to create its PDF files.
+    typst_pdf_builder: io::TypstPdfBuilder,
 }
 
 impl std::fmt::Debug for NoteIndex {
@@ -37,6 +39,7 @@ impl NoteIndex {
     pub fn new(
         mut tracker: io::FileTracker,
         builder: io::HtmlBuilder,
+        typst_pdf_builder: io::TypstPdfBuilder,
     ) -> (Self, Vec<error::RucolaError>) {
         // create an error struct
         let mut errors = vec![];
@@ -77,6 +80,7 @@ impl NoteIndex {
                 inner,
                 tracker,
                 builder,
+                typst_pdf_builder,
             },
             errors,
         )
@@ -114,6 +118,7 @@ impl NoteIndex {
                             if let Ok(note) = super::Note::from_path(&path) {
                                 // create html on creation
                                 self.builder.create_html(&note, false)?;
+                                self.typst_pdf_builder.create_typst_pdf(&note, false)?;
                                 // insert the note
                                 self.inner.insert(super::name_to_id(&note.name), note);
                                 modifications = true;
@@ -155,6 +160,7 @@ impl NoteIndex {
                                     if let Ok(new_note) = Note::from_path(&note.path) {
                                         // create html on creation
                                         self.builder.create_html(&new_note, false)?;
+                                        self.typst_pdf_builder.create_typst_pdf(&new_note, false)?;
                                         // replace the index entry
                                         *note = new_note;
                                         modifications = true;
@@ -217,7 +223,8 @@ mod tests {
         let config = crate::Config::default();
         let tracker = io::FileTracker::new(&config, std::path::PathBuf::from("./tests")).unwrap();
         let builder = io::HtmlBuilder::new(&config, std::path::PathBuf::from("./tests"));
-        let index = NoteIndex::new(tracker, builder).0;
+        let typst_pdf_builder= io::TypstPdfBuilder::new( std::path::PathBuf::from("./tests"));
+        let index = NoteIndex::new(tracker, builder, typst_pdf_builder).0;
 
         assert_eq!(index.inner.len(), 12);
 
@@ -242,7 +249,8 @@ mod tests {
         let config = crate::Config::default();
         let tracker = io::FileTracker::new(&config, std::path::PathBuf::from("./tests")).unwrap();
         let builder = io::HtmlBuilder::new(&config, std::path::PathBuf::from("./tests"));
-        let index = NoteIndex::new(tracker, builder).0;
+        let typst_pdf_builder= io::TypstPdfBuilder::new( std::path::PathBuf::from("./tests"));
+        let index = NoteIndex::new(tracker, builder, typst_pdf_builder).0;
 
         assert_eq!(index.inner.len(), 12);
 
@@ -271,7 +279,8 @@ mod tests {
         let config = crate::Config::default();
         let tracker = io::FileTracker::new(&config, std::path::PathBuf::from("./tests")).unwrap();
         let builder = io::HtmlBuilder::new(&config, std::path::PathBuf::from("./tests"));
-        let index = NoteIndex::new(tracker, builder).0;
+        let typst_pdf_builder= io::TypstPdfBuilder::new( std::path::PathBuf::from("./tests"));
+        let index = NoteIndex::new(tracker, builder, typst_pdf_builder).0;
 
         assert_eq!(index.inner.len(), 12);
 
@@ -296,7 +305,8 @@ mod tests {
         let config = crate::Config::default();
         let tracker = io::FileTracker::new(&config, std::path::PathBuf::from("./tests")).unwrap();
         let builder = io::HtmlBuilder::new(&config, std::path::PathBuf::from("./tests"));
-        let index = NoteIndex::new(tracker, builder).0;
+        let typst_pdf_builder= io::TypstPdfBuilder::new( std::path::PathBuf::from("./tests"));
+        let index = NoteIndex::new(tracker, builder, typst_pdf_builder).0;
 
         assert_eq!(index.inner.len(), 12);
 
