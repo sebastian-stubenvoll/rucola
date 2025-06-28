@@ -103,13 +103,13 @@ impl ToNote for TypstFile {
         let content = fs::read_to_string(path)?;
         // Create a regex to check for YAML front matter.
         // This assumes the yaml frontmatter is enclosed in a block comment.
-        let regex = regex::Regex::new("\\\\*\n---\n((.|\n)*)\n---\n\\\\*((.|\n)*)")?;
+        let regex = regex::Regex::new("/\\*\n---\n((.|\n)*)\n---\n\\*/((.|\n)*)")?;
 
         // Extract both the YAML front matter, if present, and the main content.
         let (yaml, content) = Note::extract_yaml(regex, content);
 
         // Parse YAML to obtain title and tags.
-        let (title, tags) = Note::parse_yaml(yaml)?;
+        let (title, mut tags) = Note::parse_yaml(yaml)?;
 
         // Parse typst into syntax tree
         let root = typst_syntax::parse(content.as_str());
@@ -117,40 +117,11 @@ impl ToNote for TypstFile {
         // Define recursive function for traversing the tree.
         // I don't belive we can skip any nodes?
         // Any String or Expression could hold a FuncCall.
-        fn traverse_tree<'a>(
-            node: &'a SyntaxNode,
-            mut links: &'a mut Vec<String>,
-        ) -> &'a mut Vec<String> {
-            for child in node.children() {
-                // Inspect function call closer.
-                if child.kind() == SyntaxKind::FuncCall {
-                    if let Some(link) = look_ahead(child) {
-                        links.push(link);
-                    }
-                }
-                // traverse_tree must return its mutable reference...
-                links = traverse_tree(child, links);
-            }
-            // ...and does so here.
-            links
-        }
-
-        fn look_ahead(node: &SyntaxNode) -> Option<String> {
-            // TODO: use setting here
-            if node.cast_first_match::<ast::Ident>()?.as_str() == "refnote" {
-                return Some(
-                    node.cast_first_match::<ast::Args>()?
-                        .to_untyped()
-                        .cast_first_match::<ast::Str>()?
-                        .get()
-                        .to_string(),
-                );
-            }
-            None
-        }
 
         let mut links: Vec<String> = Vec::new();
-        let _ = traverse_tree(&root, &mut links);
+
+        // Mutable references can be dropped here.
+        let _ = TypstFile::traverse_tree(&root, &mut links, &mut tags);
 
         Ok(Note {
             // Name: Check if there was one specified in the YAML fronmatter.
@@ -179,6 +150,50 @@ impl ToNote for TypstFile {
             // Characters: Simply use the length of the string.
             characters: content.len(),
         })
+    }
+}
+
+impl TypstFile {
+    // Helper functinos for extracting information from the syntax tree.
+    fn traverse_tree<'a>(
+        node: &'a SyntaxNode,
+        mut links: &'a mut Vec<String>,
+        mut tags: &'a mut Vec<String>,
+    ) -> (&'a mut Vec<String>, &'a mut Vec<String>) {
+        // Recursively traverse all nodes.
+        for child in node.children() {
+            // Inspect function call closer.
+            if child.kind() == SyntaxKind::FuncCall {
+                // TODO: Use setting for ident here!
+                if let Some(link) = TypstFile::look_ahead(child, "refnote") {
+                    links.push(link);
+                } else if let Some(mut tag) = TypstFile::look_ahead(child, "tag") {
+                    if !tag.starts_with("#") {
+                        tag.insert(0, '#');
+                    }
+                    tags.push(tag);
+                }
+            }
+            // traverse_tree must return its mutable reference...
+            (links, tags) = TypstFile::traverse_tree(child, links, tags);
+        }
+        // ...and does so here.
+        (links, tags)
+    }
+
+    fn look_ahead(node: &SyntaxNode, ident: &str) -> Option<String> {
+        // Check if the FuncCall has a child that is the inditifier for the link function.
+        if node.cast_first_match::<ast::Ident>()?.as_str() == ident {
+            return Some(
+                // Per definition (see TYPST_README.md) the first argument must be the link target.
+                node.cast_first_match::<ast::Args>()?
+                    .to_untyped()
+                    .cast_first_match::<ast::Str>()?
+                    .get()
+                    .to_string(),
+            );
+        }
+        None
     }
 }
 
@@ -330,12 +345,18 @@ impl Note {
 #[cfg(test)]
 mod tests {
 
+    use super::ToNote;
     use std::path::{Path, PathBuf};
 
     #[test]
-    fn test_loading() {
+    fn test_md_loading() {
         let _note =
-            crate::data::Note::from_path(Path::new("./tests/common/notes/Books.md")).unwrap();
+            super::MarkdownFile::to_note(Path::new("./tests/common/notes/Books.md")).unwrap();
+    }
+
+    #[test]
+    fn test_typ_loading() {
+        let _note = super::TypstFile::to_note(Path::new("./tests/common/notes/Birds.typ")).unwrap();
     }
 
     #[test]
@@ -379,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn test_yaml_tags() {
+    fn test_yaml_tags_md() {
         let note =
             crate::data::Note::from_path(Path::new("./tests/common/notes/note25.md")).unwrap();
 
@@ -390,6 +411,22 @@ mod tests {
                 String::from("#files/yaml"),
                 String::from("#files/markdown"),
                 String::from("#abbreviations")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_yaml_tags_typ() {
+        let note =
+            crate::data::Note::from_path(Path::new("./tests/common/notes/Warbler.typ")).unwrap();
+
+        assert_eq!(
+            note.tags,
+            vec![
+                String::from("#animals/birds"),
+                String::from("#animals/america"),
+                String::from("#biology"),
+                String::from("#warblers")
             ]
         );
     }

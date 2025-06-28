@@ -1,3 +1,6 @@
+# MacOS litters these everywhere.
+.DS_Store
+
 # Will have compiled html files in them.
 *.html
 

@@ -5,7 +5,7 @@
 # The file types to consider as 'notes'.
 # See https://docs.rs/ignore/latest/src/ignore/default_types.rs.html for a complete list of possible types.
 # Note that your files still need to contain valid markdown or at least plaintext to be parsed, even with a differing extension.
-file_types = ["markdown"]
+file_types = ["typ"]
 
 # The default extension to append to newly created files.
 default_extension = "md"
