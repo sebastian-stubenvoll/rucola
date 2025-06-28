@@ -1,6 +1,6 @@
 /*
 ---
-title: YAML Format
+title: YAML Format in .typ files
 tags:
   - animals
     - birds

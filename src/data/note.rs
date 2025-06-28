@@ -142,7 +142,14 @@ impl ToNote for TypstFile {
             // Finally, append tags specified in the YAML frontmatter.
             // TODO: get tags from tag function!
             tags,
-            links,
+            links: links
+                .iter()
+                // Extract filename without extension.
+                .filter_map(|l| path::Path::new(l).file_stem())
+                // Conver OsStr to the owned String type via str
+                .filter_map(|s| s.to_str())
+                .map(|s| s.to_string())
+                .collect(),
 
             // Words: Split at whitespace, grouping multiple consecutive instances of whitespace together.
             // See definition of `split_whitespace` for criteria.
@@ -154,7 +161,7 @@ impl ToNote for TypstFile {
 }
 
 impl TypstFile {
-    // Helper functinos for extracting information from the syntax tree.
+    // Helper functions for extracting information from the syntax tree.
     fn traverse_tree<'a>(
         node: &'a SyntaxNode,
         mut links: &'a mut Vec<String>,
@@ -360,7 +367,7 @@ mod tests {
     }
 
     #[test]
-    fn test_values() {
+    fn test_values_md() {
         let note =
             crate::data::Note::from_path(Path::new("./tests/common/notes/math/Chart.md")).unwrap();
 
@@ -384,7 +391,31 @@ mod tests {
     }
 
     #[test]
-    fn test_yaml_name() {
+    fn test_values_typ() {
+        let note =
+            crate::data::Note::from_path(Path::new("./tests/common/notes/Links.typ")).unwrap();
+
+        assert_eq!(note.name, String::from("Links"));
+        assert_eq!(
+            note.tags,
+            vec![String::from("#link"), String::from("#typst")]
+        );
+        assert_eq!(
+            note.links,
+            vec![String::from("Birds"), String::from("Warbler")]
+        );
+        assert_eq!(note.words, 25);
+        assert_eq!(note.characters, 230);
+        assert_eq!(
+            note.path,
+            PathBuf::from("./tests/common/notes/Links.typ")
+                .canonicalize()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_yaml_name_md() {
         let note =
             crate::data::Note::from_path(Path::new("./tests/common/notes/note25.md")).unwrap();
 
@@ -394,6 +425,22 @@ mod tests {
         assert_eq!(
             note.path,
             PathBuf::from("./tests/common/notes/note25.md")
+                .canonicalize()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_yaml_name_typ() {
+        let note =
+            crate::data::Note::from_path(Path::new("./tests/common/notes/Warbler.typ")).unwrap();
+
+        assert_eq!(note.display_name, String::from("YAML Format in .typ files"));
+        assert_eq!(note.name, String::from("Warbler"));
+
+        assert_eq!(
+            note.path,
+            PathBuf::from("./tests/common/notes/Warbler.typ")
                 .canonicalize()
                 .unwrap()
         );

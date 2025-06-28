@@ -35,6 +35,8 @@ impl FileTracker {
         // Pre-calculate allowed file types
         let mut types_builder = ignore::types::TypesBuilder::new();
         types_builder.add_defaults();
+        // Add typst files (currently not included in ignore)
+        types_builder.add("typst", "*.typ")?;
         for name in config.file_types.iter() {
             types_builder.select(name);
         }

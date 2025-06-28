@@ -1,4 +1,7 @@
 This is a #link("./Booksold") that shouldn't get parsed.
-Neither should this plaintext link to http://www.google.com
+Neither should this plaintext #tag("link") to http://www.google.com
 
-However this one should: #refnote("./Cargo.toml")
+However this one should: #refnote("./Birds.typ")
+This one too: #refnote("./Warbler.typ")
+
+#tag("typst")
