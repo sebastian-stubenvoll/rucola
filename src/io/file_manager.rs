@@ -225,10 +225,25 @@ impl FileManager {
         // Create the file
         let mut file = fs::File::create(path.clone())?;
 
+        // Check if file is a .typ file.
+        let is_typst = path
+            .extension()
+            .is_some_and(|ft| ft.to_str().unwrap_or("") == "typ");
+
+        // Load config, default() call is evaluated lazily.
+        let config = crate::config::CONFIGURATION.get_or_init(crate::config::Config::default);
+
         // Write an preliminary input, so the file isn't empty (messed with XDG for some reason).
         write!(
             file,
-            "# {}",
+            "{}{} {}",
+            if is_typst {
+                format!("{}\n", config.typst_preamble.join("\n"))
+            } else {
+                "".to_string()
+            },
+            // Top level headings
+            if is_typst { "=" } else { "#" },
             path.file_stem()
                 .map(|fs| fs.to_string_lossy().to_string())
                 .unwrap_or_else(|| "note".to_owned())
@@ -632,4 +647,6 @@ mod tests {
         assert_eq!(md_ending, md_ending_tar);
         assert_eq!(txt_ending, txt_ending_tar);
     }
+
+    //TODO: write test for typst preamble!
 }
