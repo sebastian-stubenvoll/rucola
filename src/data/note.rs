@@ -120,8 +120,18 @@ impl ToNote for TypstFile {
 
         let mut links: Vec<String> = Vec::new();
 
+        // Load config to obtain tpyst function identifiers to look for.
+        // get_or_init uses a closure under the hood, so this should be evaulated lazily.
+        let config = crate::config::CONFIGURATION.get_or_init(crate::config::Config::default);
+
         // Mutable references can be dropped here.
-        let _ = TypstFile::traverse_tree(&root, &mut links, &mut tags);
+        let _ = TypstFile::traverse_tree(
+            &root,
+            &mut links,
+            &mut tags,
+            &config.link_function,
+            &config.tag_function,
+        );
 
         Ok(Note {
             // Name: Check if there was one specified in the YAML fronmatter.
@@ -166,23 +176,25 @@ impl TypstFile {
         node: &'a SyntaxNode,
         mut links: &'a mut Vec<String>,
         mut tags: &'a mut Vec<String>,
+        link_ident: &String,
+        tag_ident: &String,
     ) -> (&'a mut Vec<String>, &'a mut Vec<String>) {
         // Recursively traverse all nodes.
         for child in node.children() {
             // Inspect function call closer.
             if child.kind() == SyntaxKind::FuncCall {
                 // TODO: Use setting for ident here!
-                if let Some(link) = TypstFile::look_ahead(child, "refnote") {
+                if let Some(link) = TypstFile::look_ahead(child, link_ident) {
                     links.push(link);
-                } else if let Some(mut tag) = TypstFile::look_ahead(child, "tag") {
+                } else if let Some(mut tag) = TypstFile::look_ahead(child, tag_ident) {
                     if !tag.starts_with("#") {
                         tag.insert(0, '#');
                     }
                     tags.push(tag);
                 }
             }
-            // traverse_tree must return its mutable reference...
-            (links, tags) = TypstFile::traverse_tree(child, links, tags);
+            // traverse_tree must return its mutable references...
+            (links, tags) = TypstFile::traverse_tree(child, links, tags, link_ident, tag_ident);
         }
         // ...and does so here.
         (links, tags)

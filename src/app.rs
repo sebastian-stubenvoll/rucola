@@ -1,3 +1,5 @@
+use crate::config::CONFIGURATION;
+
 use super::{data, error, io, ui, ui::Screen};
 use ratatui::prelude::*;
 
@@ -49,6 +51,9 @@ impl App {
                 Default::default()
             }
         };
+
+        // Set the static OnceLock, making the config accessible across the entire application.
+        let _ = CONFIGURATION.set(config.clone());
 
         // Load the style file specified in the configuration
         errors.extend(loading_screen_callback("Loading styles...").err());

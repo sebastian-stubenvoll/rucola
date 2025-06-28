@@ -1,6 +1,11 @@
-use std::{collections::HashMap, path};
+use std::{collections::HashMap, path, sync::OnceLock};
 
 use crate::{error, ui};
+
+// This isn't strictly necessary, but this saves the trouble of passing around the config reference.
+// Since the config references are all immutable this is functionally identical, except that one must remember to set the cell.
+// This is done right after the (only) config.load() in app.rs.
+pub static CONFIGURATION: OnceLock<Config> = OnceLock::new();
 
 /// The file format a viewer expects.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -42,12 +47,16 @@ pub struct Config {
     pub(crate) enable_html: bool,
     /// Path to .css file to style htmls with.
     pub(crate) css: Option<String>,
-    /// String to prepend to all generated html documents (e.g. for MathJax)
+    /// String to prepend to all generated html documents (e.g. for MathJax).
     pub(crate) html_prepend: Option<String>,
     /// Wether or not to insert a MathJax preamble in notes containing math code.
     pub(crate) katex: bool,
-    /// A list of strings to replace in math mode to mimic latex commands
+    /// A list of strings to replace in math mode to mimic latex commands.
     pub(crate) math_replacements: HashMap<String, String>,
+    /// The identifier for the typst link function (see TYPST_README.md).
+    pub(crate) link_function: String,
+    /// The identifier for the typst tag function (see TYPST_README.md).
+    pub(crate) tag_function: String,
 }
 
 impl Default for Config {
@@ -71,6 +80,8 @@ impl Default for Config {
                 "\\field".to_string(),
                 "\\mathbb".to_string(),
             )]),
+            link_function: "refnote".to_string(),
+            tag_function: "tag".to_string(),
         }
     }
 }
