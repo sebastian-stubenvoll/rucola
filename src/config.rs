@@ -15,6 +15,8 @@ pub(crate) enum ViewerType {
     Html,
     /// A viewer that displays markdown files and thus needs to be given paths to an markdown file.
     Markdown,
+    /// A viewer that displays pdf files and thus needs to be given paths to an pdf file.
+    Pdf,
 }
 
 /// Groups data passed by the user in the config file.

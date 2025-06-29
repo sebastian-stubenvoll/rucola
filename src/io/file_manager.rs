@@ -326,6 +326,9 @@ impl FileManager {
                 super::html_builder::name_to_html_path(&note.name, &self.vault_path)
             }
             config::ViewerType::Markdown => note.path.clone(),
+            config::ViewerType::Pdf => {
+                super::TypstPdfBuilder::name_to_pdf_path(&note.name, &self.vault_path)
+            }
         };
         eprintln!("{:?}", path);
 
