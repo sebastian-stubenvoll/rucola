@@ -148,9 +148,6 @@ impl ToNote for TypstFile {
                 .ok_or_else(|| error::RucolaError::NoteNameCannotBeRead(path.to_path_buf()))?,
             // Path: Already given - convert to owned version.
             path: path.canonicalize().unwrap_or(path.to_path_buf()),
-            // Tags: Go though all text nodes in the AST, split them at whitespace and look for those starting with a hash.
-            // Finally, append tags specified in the YAML frontmatter.
-            // TODO: get tags from tag function!
             tags,
             links: links
                 .iter()
@@ -158,7 +155,7 @@ impl ToNote for TypstFile {
                 .filter_map(|l| path::Path::new(l).file_stem())
                 // Conver OsStr to the owned String type via str
                 .filter_map(|s| s.to_str())
-                .map(|s| s.to_string())
+                .map(super::name_to_id)
                 .collect(),
 
             // Words: Split at whitespace, grouping multiple consecutive instances of whitespace together.

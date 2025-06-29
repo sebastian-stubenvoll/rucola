@@ -23,6 +23,8 @@ pub struct App {
     manager: io::FileManager,
     /// The HtmlBuider this app's screens use to continuously build html files.
     builder: io::HtmlBuilder,
+    /// The PDF builder this app's screens use to continuously build html files.
+    typst_pdf_builder: io::TypstPdfBuilder,
     /// The styles used by this app's screens.
     styles: ui::UiStyles,
 }
@@ -95,7 +97,7 @@ impl App {
 
         // Index all files in path
         let (index, index_errors) =
-            data::NoteIndex::new(tracker, builder.clone(), typst_pdf_builder);
+            data::NoteIndex::new(tracker, builder.clone(), typst_pdf_builder.clone());
         errors.extend(index_errors);
 
         let index = std::rc::Rc::new(std::cell::RefCell::new(index));
@@ -119,6 +121,7 @@ impl App {
                 styles,
                 manager,
                 builder,
+                typst_pdf_builder,
             },
             errors,
         )
@@ -133,6 +136,7 @@ impl App {
                 self.index.clone(),
                 self.manager.clone(),
                 self.builder.clone(),
+                self.typst_pdf_builder.clone(),
                 self.styles,
             )?),
             None => None,

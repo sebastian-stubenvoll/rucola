@@ -69,6 +69,15 @@ impl NoteIndex {
                 .flat_map(Result::err),
         );
 
+        // create pdfs and save errors
+        // TODO: spawn threads so pdfs are compiled in parallel
+        errors.extend(
+            inner
+                .values()
+                .map(|note| typst_pdf_builder.create_typst_pdf(note, false, true))
+                .flat_map(Result::err),
+        );
+
         // let the watcher start watching _after_ all htmls have been re-done
         match tracker.initialize_watching() {
             Ok(_) => {}

@@ -185,39 +185,40 @@ mod tests {
         assert!(tracker.is_tracked(&rs));
     }
 
-    // #[test]
-    // fn test_watcher_create() {
-    //     let tmp = testdir::testdir!();
+    #[test]
+    fn test_watcher_create() {
+        let tmp = testdir::testdir!();
 
-    //     let config = crate::Config::default();
-    //     let fm = crate::io::FileManager::new(&config, tmp.clone());
-    //     let tracker = crate::io::FileTracker::new(&config, tmp.clone()).unwrap();
-    //     let builder = crate::io::HtmlBuilder::new(&config, tmp.clone());
-    //     let mut index = crate::data::NoteIndex::new(tracker, builder).0;
+        let config = crate::Config::default();
+        let fm = crate::io::FileManager::new(&config, tmp.clone());
+        let tracker = crate::io::FileTracker::new(&config, tmp.clone()).unwrap();
+        let builder = crate::io::HtmlBuilder::new(&config, tmp.clone());
+        let typst_pdf_builder = crate::io::TypstPdfBuilder::new(tmp.clone());
+        let mut index = crate::data::NoteIndex::new(tracker, builder, typst_pdf_builder).0;
 
-    //     assert!(index.get("atlas").is_none());
-    //     assert!(index.get("lie-group").is_none());
+        assert!(index.get("atlas").is_none());
+        assert!(index.get("lie-group").is_none());
 
-    //     fm.create_note_file("Lie Group").unwrap();
+        fm.create_note_file("Lie Group").unwrap();
 
-    //     let (modifications, id_changes) = index.handle_file_events().unwrap();
+        let (modifications, id_changes) = index.handle_file_events().unwrap();
 
-    //     assert!(modifications);
-    //     assert!(id_changes.is_empty());
+        assert!(modifications);
+        assert!(id_changes.is_empty());
 
-    //     assert!(index.get("atlas").is_none());
-    //     assert!(index.get("lie-group").is_some());
+        assert!(index.get("atlas").is_none());
+        assert!(index.get("lie-group").is_some());
 
-    //     fm.create_note_file("Math/Atlas").unwrap();
+        fm.create_note_file("Math/Atlas").unwrap();
 
-    //     let (modifications, id_changes) = index.handle_file_events().unwrap();
+        let (modifications, id_changes) = index.handle_file_events().unwrap();
 
-    //     assert!(modifications);
-    //     assert!(id_changes.is_empty());
+        assert!(modifications);
+        assert!(id_changes.is_empty());
 
-    //     assert!(index.get("atlas").is_some());
-    //     assert!(index.get("lie-group").is_some());
-    // }
+        assert!(index.get("atlas").is_some());
+        assert!(index.get("lie-group").is_some());
+    }
 
     #[test]
     fn test_watcher_rename() {

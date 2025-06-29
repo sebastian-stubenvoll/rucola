@@ -89,7 +89,7 @@ impl Default for Config {
             link_function: "refnote".to_string(),
             tag_function: "tag".to_string(),
             typst_preamble: vec![],
-            enable_typst_pdf: false,
+            enable_typst_pdf: true,
             typst_cmds: vec![String::from("typst"), String::from("compile")],
         }
     }

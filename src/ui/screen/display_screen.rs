@@ -25,6 +25,8 @@ pub struct DisplayScreen {
     manager: io::FileManager,
     /// The HtmlBuider this screen uses to continuously build html files.
     builder: io::HtmlBuilder,
+    /// The PDF builder this screen uses to continuously build html files.
+    typst_pdf_builder: io::TypstPdfBuilder,
     /// The used styles.
     styles: ui::UiStyles,
 
@@ -58,6 +60,7 @@ impl DisplayScreen {
         index: data::NoteIndexContainer,
         manager: io::FileManager,
         builder: io::HtmlBuilder,
+        typst_pdf_builder: io::TypstPdfBuilder,
         styles: ui::UiStyles,
     ) -> error::Result<Self> {
         let index_b = index.borrow();
@@ -107,6 +110,7 @@ impl DisplayScreen {
             index,
             manager,
             builder,
+            typst_pdf_builder,
             styles,
             name_area,
             selected: [0; 4],
@@ -303,6 +307,8 @@ impl super::Screen for DisplayScreen {
                 // Open selected item in viewer
                 KeyCode::Char('v' | 'V') => {
                     self.builder.create_html(&self.note, true)?;
+                    self.typst_pdf_builder
+                        .create_typst_pdf(&self.note, true, true)?;
                     return Ok(ui::Message::OpenExternalCommand(Box::new(
                         self.manager
                             .create_view_command(&self.note, key.code == KeyCode::Char('v'))?,
