@@ -35,7 +35,12 @@ impl TypstPdfBuilder {
         }
     }
 
-    pub fn create_typst_pdf(&self, note: &data::Note, force: bool) -> error::Result<()> {
+    pub fn create_typst_pdf(
+        &self,
+        note: &data::Note,
+        force: bool,
+        wait: bool,
+    ) -> error::Result<()> {
         if !self.enable_typst_pdf && !force {
             return Ok(());
         }
@@ -60,7 +65,7 @@ impl TypstPdfBuilder {
 
         let mut cmd_buffer = self.typst_cmds.clone();
         let cmd = cmd_buffer.pop_front();
-        let __ = std::process::Command::new(
+        let mut child = std::process::Command::new(
             // Explicitly panic if vec is empty!
             cmd.expect("Compliation command to be provided."),
         )
@@ -68,6 +73,12 @@ impl TypstPdfBuilder {
         .arg(note.path.clone())
         .arg(tar_path)
         .spawn()?;
+
+        // For testing
+        if wait {
+            // Wait for typst compilation to be complete!
+            let _ = child.wait();
+        }
 
         Ok(())
     }
@@ -91,16 +102,16 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     #[test]
-    fn test_create_html_no_panic() {
+    fn test_create_pdf_no_panic() {
         let pb = super::TypstPdfBuilder::new(PathBuf::from("./tests"));
 
         let os = crate::data::Note::from_path(Path::new("./tests/common/notes/Birds.typ")).unwrap();
 
-        pb.create_typst_pdf(&os, true).unwrap();
+        pb.create_typst_pdf(&os, true, true).unwrap();
     }
 
     #[test]
-    fn test_name_to_html_path() {
+    fn test_name_to_pdf_path() {
         // let config = crate::Config::default();
         let vault_path = PathBuf::from("./tests");
 
@@ -115,21 +126,24 @@ mod tests {
     }
 
     #[test]
-    fn test_create_html_creates_files() {
-        let vault_path = PathBuf::from("./tests");
+    fn test_create_pdf_creates_files() {
+        let vault_path = PathBuf::from("./tests/");
         let b_path = super::TypstPdfBuilder::name_to_pdf_path("birds", &vault_path);
         let pb = super::TypstPdfBuilder::new(vault_path);
 
         let birds =
             crate::data::Note::from_path(Path::new("./tests/common/notes/Birds.typ")).unwrap();
 
-        if b_path.exists() {
+        if Path::new(&b_path).exists() {
             std::fs::remove_file(&b_path).unwrap();
         }
 
         // assert!(!b_path.exists());
 
-        pb.create_typst_pdf(&birds, true).unwrap();
+        pb.create_typst_pdf(&birds, true, true).unwrap();
+
+        println!("b_path: {:?}", b_path);
+        println!("Exists: {}", b_path.try_exists().unwrap());
 
         assert!(b_path.exists());
     }

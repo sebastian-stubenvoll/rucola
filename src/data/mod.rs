@@ -30,6 +30,7 @@ pub fn name_to_id(name: &str) -> String {
         .to_lowercase()
         .replace(' ', "-")
         .replace(".md", "")
+        .replace(".typ", "")
 }
 
 #[cfg(test)]
@@ -41,5 +42,6 @@ mod tests {
         assert_eq!(name_to_id("Lie Theory.md"), "lie-theory");
         assert_eq!(name_to_id("Lie Theory"), "lie-theory");
         assert_eq!(name_to_id("lie-theory"), "lie-theory");
+        assert_eq!(name_to_id("Birds.typ"), "birds");
     }
 }

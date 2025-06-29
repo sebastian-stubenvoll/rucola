@@ -1,4 +1,4 @@
-use std::{any::Any, borrow::BorrowMut, collections::HashMap};
+use std::{borrow::BorrowMut, collections::HashMap};
 
 use itertools::Itertools;
 
@@ -118,7 +118,7 @@ impl NoteIndex {
                             if let Ok(note) = super::Note::from_path(&path) {
                                 // create html on creation
                                 self.builder.create_html(&note, false)?;
-                                self.typst_pdf_builder.create_typst_pdf(&note, false)?;
+                                self.typst_pdf_builder.create_typst_pdf(&note, false, false)?;
                                 // insert the note
                                 self.inner.insert(super::name_to_id(&note.name), note);
                                 modifications = true;
@@ -160,7 +160,7 @@ impl NoteIndex {
                                     if let Ok(new_note) = Note::from_path(&note.path) {
                                         // create html on creation
                                         self.builder.create_html(&new_note, false)?;
-                                        self.typst_pdf_builder.create_typst_pdf(&new_note, false)?;
+                                        self.typst_pdf_builder.create_typst_pdf(&new_note, false, false)?;
                                         // replace the index entry
                                         *note = new_note;
                                         modifications = true;

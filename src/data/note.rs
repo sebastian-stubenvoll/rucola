@@ -246,9 +246,8 @@ impl Note {
         {
             Some("md") => MarkdownFile::to_note(path),
             Some("typ") => TypstFile::to_note(path),
-            // This should never match since only .md or .typ files should be passed in!
-            // Maybe there's a smarter way to design the API here?
-            _ => error::Result::Err(error::RucolaError::UnhandledFiletype),
+            // Fallback to markdown file if no ext could be determined.
+            _ => MarkdownFile::to_note(path),
         };
         note
     }
