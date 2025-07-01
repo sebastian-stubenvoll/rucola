@@ -11,6 +11,7 @@ pub use filter::Filter;
 mod index;
 pub use index::NoteIndex;
 pub use index::NoteIndexContainer;
+use unicode_normalization::UnicodeNormalization;
 
 /// Turns a file name or link into its id in the following steps:
 ///  - everything after the first # or ., including the # or ., is ignored
@@ -24,7 +25,9 @@ pub use index::NoteIndexContainer;
 ///  assert_eq!(name_to_id("lie-theory"), "lie-theory");
 /// ```
 pub fn name_to_id(name: &str) -> String {
-    name.split(['#', '.'])
+    name.nfc()
+        .collect::<String>()
+        .split(['#', '.'])
         .take(1)
         .collect::<String>()
         .to_lowercase()

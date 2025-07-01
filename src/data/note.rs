@@ -410,10 +410,10 @@ mod tests {
         );
         assert_eq!(
             note.links,
-            vec![String::from("Birds"), String::from("Warbler")]
+            vec![String::from("birds"), String::from("warbler")]
         );
-        assert_eq!(note.words, 25);
-        assert_eq!(note.characters, 230);
+        assert_eq!(note.words, 27);
+        assert_eq!(note.characters, 248);
         assert_eq!(
             note.path,
             PathBuf::from("./tests/common/notes/Links.typ")
